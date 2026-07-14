@@ -1,0 +1,28 @@
+name = "smart-home-monitoring"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+
+# Static assets (frontend dashboard) - fitur gratis Workers
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+# KV namespace untuk cache token Tuya + state timestamp device (idle alerts).
+# Buat dulu dengan:  npx wrangler kv namespace create CACHE
+# lalu ganti "id" di bawah dengan id yang dikeluarkan perintah tersebut.
+[[kv_namespaces]]
+binding = "CACHE"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+
+# Cron trigger untuk polling idle alerts (Fitur 6). Gratis di free tier.
+# Jalan tiap 5 menit.
+[triggers]
+crons = ["*/5 * * * *"]
+
+# Variabel non-rahasia boleh ditaruh di sini (atau override lewat secret/.dev.vars).
+# JANGAN taruh TUYA_CLIENT_SECRET di sini — itu harus jadi secret.
+[vars]
+TUYA_BASE_URL = "https://openapi.tuyaus.com"
+IDLE_LIMIT_MINUTES = "60"
+HOME_LATITUDE = "-6.2088"
+HOME_LONGITUDE = "106.8456"
