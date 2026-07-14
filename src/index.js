@@ -10,6 +10,17 @@ import {
   getDeviceInfo,
   sendCommands,
 } from "./tuya.js";
+import deviceMap from "../device-map.json";
+
+// Ambil nama/ruangan/ikon ramah untuk sebuah device ID; fallback ke ID mentah kalau tidak ada di map.
+function friendlyDevice(id) {
+  const meta = deviceMap[id];
+  return {
+    name: meta?.name || id,
+    room: meta?.room || "Tanpa Ruangan",
+    icon: meta?.icon || "🔌",
+  };
+}
 
 const IDLE_STATE_KEY = "idle_state";
 const IDLE_ALERTS_KEY = "idle_alerts";
@@ -50,7 +61,11 @@ function isDeviceOn(statusList) {
 async function handleDevices(env) {
   const ids = parseIds(env.DEVICE_IDS);
   const statuses = await getDevicesStatus(env, ids);
-  return json({ success: true, devices: statuses });
+  const devices = statuses.map((dev) => ({
+    ...dev,
+    ...friendlyDevice(dev.id),
+  }));
+  return json({ success: true, devices });
 }
 
 async function handleDeviceInfo(env, deviceId) {
@@ -134,13 +149,13 @@ async function computeIdleAlerts(env) {
       if (!state[dev.id]) state[dev.id] = now;
       const onSince = state[dev.id];
       if (now - onSince >= limitMs) {
+        const minutesOn = Math.round((now - onSince) / 60000);
+        const { name } = friendlyDevice(dev.id);
         alerts.push({
           deviceId: dev.id,
           onSince,
-          minutesOn: Math.round((now - onSince) / 60000),
-          message: `Perangkat ${dev.id} sudah menyala ${Math.round(
-            (now - onSince) / 60000
-          )} menit — cek agar tidak boros listrik.`,
+          minutesOn,
+          message: `${name} sudah menyala ${minutesOn} menit — cek agar tidak boros listrik.`,
         });
       }
     } else {

@@ -140,8 +140,8 @@
         const code = switchCode(dev.status);
         return `
           <div class="card">
-            <div class="device-name">📟 ${dev.id.slice(0, 8)}…</div>
-            <div class="device-id">${dev.id}</div>
+            <div class="device-name">${dev.icon || "🔌"} ${dev.name || dev.id}</div>
+            <div class="device-id">${dev.room || ""}</div>
             <div class="status-row">
               <span class="dot ${on ? "on" : ""}"></span>
               <span>${on ? "Menyala" : "Mati"}</span>

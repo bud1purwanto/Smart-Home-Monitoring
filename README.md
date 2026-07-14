@@ -63,6 +63,18 @@ npx wrangler kv namespace create CACHE
 npm run dev
 ```
 
+### 🏷️ Nama Ramah Device
+
+Edit `device-map.json` (bukan rahasia, aman di-commit) untuk memetakan Device ID Tuya ke nama, ruangan, dan ikon yang tampil di dashboard:
+
+```json
+{
+  "eb1234567890abcdef": { "name": "Lampu Ruang Tamu", "room": "Ruang Tamu", "icon": "💡" }
+}
+```
+
+Device ID yang tidak ada di map tetap tampil (pakai ID mentah sebagai nama), jadi tidak wajib diisi semua sekaligus.
+
 ## ☁️ Deploy ke Cloudflare (pakai Secret)
 
 Saat deploy, **jangan** commit rahasia. Set sebagai secret di Cloudflare:
