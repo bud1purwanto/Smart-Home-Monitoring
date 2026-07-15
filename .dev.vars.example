@@ -13,10 +13,13 @@ TUYA_CLIENT_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 #   https://openapi.tuyacn.com   (China)
 TUYA_BASE_URL=https://openapi.tuyaus.com
 
-# Daftar Device ID yang mau dimonitor, dipisah koma (lihat di app Smart Life / Tuya IoT)
-DEVICE_IDS=deviceid1,deviceid2,deviceid3
+# UID akun App Tuya (bukan Client ID!) yang di-link ke Cloud Project kamu
+# (Cloud > Devices > Link Tuya App Account > klik baris akun "budi.purwanto15@gmail.com" untuk lihat UID).
+# Dengan ini, SEMUA device yang ter-link otomatis muncul di dashboard — tidak perlu ketik Device ID satu-satu.
+TUYA_UID=az17xxxxxxxxxxxxxxxx
 
 # Device ID perangkat berdaya tinggi untuk fitur Idle Alerts (Water Heater, AC), dipisah koma
+# (untuk ini tetap perlu Device ID manual karena cuma sebagian device yang mau dipantau borosnya)
 HIGH_POWER_DEVICE_IDS=waterheaterid,acid
 
 # Batas idle dalam menit sebelum alert muncul (default 60)

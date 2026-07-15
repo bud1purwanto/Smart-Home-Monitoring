@@ -8,22 +8,26 @@
 import {
   getDevicesStatus,
   getDeviceInfo,
+  getUserDevices,
   sendCommands,
 } from "./tuya.js";
 import deviceMap from "../device-map.json";
 
-// Ambil nama/ruangan/ikon ramah untuk sebuah device ID; fallback ke ID mentah kalau tidak ada di map.
-function friendlyDevice(id) {
+// device-map.json sekarang jadi OPSIONAL: hanya untuk override "room" & "icon"
+// (nama & daftar device sendiri sudah otomatis dari Tuya via TUYA_UID, tidak perlu ketik manual).
+function applyOverride(id, base) {
   const meta = deviceMap[id];
   return {
-    name: meta?.name || id,
+    ...base,
     room: meta?.room || "Tanpa Ruangan",
-    icon: meta?.icon || "🔌",
+    icon: meta?.icon || base.icon || "🔌",
   };
 }
 
 const IDLE_STATE_KEY = "idle_state";
 const IDLE_ALERTS_KEY = "idle_alerts";
+const DEVICE_LIST_CACHE_KEY = "device_list";
+const DEVICE_LIST_TTL_SECONDS = 300; // 5 menit — daftar device jarang berubah
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -58,14 +62,49 @@ function isDeviceOn(statusList) {
 
 // ---- API handlers ----
 
+// Auto-discover: ambil semua device yang ter-link ke akun App Tuya (TUYA_UID),
+// termasuk nama & kategori aslinya — tidak perlu ketik Device ID manual.
+// Di-cache 5 menit di KV supaya hemat quota (daftar device jarang berubah).
+async function getDiscoveredDevices(env) {
+  const cached = await env.CACHE.get(DEVICE_LIST_CACHE_KEY, { type: "json" });
+  if (cached) return cached;
+
+  if (!env.TUYA_UID) {
+    throw new Error(
+      "TUYA_UID belum di-set. Isi di .dev.vars / secret Cloudflare (lihat README)."
+    );
+  }
+  const list = await getUserDevices(env, env.TUYA_UID);
+  await env.CACHE.put(DEVICE_LIST_CACHE_KEY, JSON.stringify(list), {
+    expirationTtl: DEVICE_LIST_TTL_SECONDS,
+  });
+  return list;
+}
+
 async function handleDevices(env) {
-  const ids = parseIds(env.DEVICE_IDS);
+  const list = await getDiscoveredDevices(env);
+  const ids = list.map((d) => d.id);
   const statuses = await getDevicesStatus(env, ids);
-  const devices = statuses.map((dev) => ({
-    ...dev,
-    ...friendlyDevice(dev.id),
-  }));
+  const statusById = Object.fromEntries(statuses.map((s) => [s.id, s.status]));
+
+  const devices = list.map((d) =>
+    applyOverride(d.id, {
+      id: d.id,
+      name: d.name,
+      category: d.category,
+      online: d.online,
+      status: statusById[d.id] || [],
+    })
+  );
   return json({ success: true, devices });
+}
+
+// Paksa refresh daftar device (dipakai tombol "Sinkronkan" di dashboard
+// setelah tambah/pindah/reset device di app Tuya, tanpa perlu redeploy).
+async function handleRefreshDevices(env) {
+  await env.CACHE.delete(DEVICE_LIST_CACHE_KEY);
+  const list = await getDiscoveredDevices(env);
+  return json({ success: true, count: list.length });
 }
 
 async function handleDeviceInfo(env, deviceId) {
@@ -121,7 +160,6 @@ async function handleConfig(env) {
   // Info non-rahasia yang dibutuhkan frontend.
   return json({
     success: true,
-    deviceIds: parseIds(env.DEVICE_IDS),
     highPowerDeviceIds: parseIds(env.HIGH_POWER_DEVICE_IDS),
     idleLimitMinutes: Number(env.IDLE_LIMIT_MINUTES || 60),
   });
@@ -137,7 +175,11 @@ async function computeIdleAlerts(env) {
   const limitMs = Number(env.IDLE_LIMIT_MINUTES || 60) * 60 * 1000;
   const now = Date.now();
 
-  const statuses = await getDevicesStatus(env, highPower);
+  const [statuses, discovered] = await Promise.all([
+    getDevicesStatus(env, highPower),
+    getDiscoveredDevices(env),
+  ]);
+  const nameById = Object.fromEntries(discovered.map((d) => [d.id, d.name]));
   const state =
     (await env.CACHE.get(IDLE_STATE_KEY, { type: "json" })) || {};
   const alerts = [];
@@ -150,7 +192,7 @@ async function computeIdleAlerts(env) {
       const onSince = state[dev.id];
       if (now - onSince >= limitMs) {
         const minutesOn = Math.round((now - onSince) / 60000);
-        const { name } = friendlyDevice(dev.id);
+        const name = nameById[dev.id] || dev.id;
         alerts.push({
           deviceId: dev.id,
           onSince,
@@ -177,6 +219,9 @@ export default {
       if (pathname.startsWith("/api/")) {
         if (pathname === "/api/devices" && request.method === "GET") {
           return await handleDevices(env);
+        }
+        if (pathname === "/api/devices/refresh" && request.method === "POST") {
+          return await handleRefreshDevices(env);
         }
         if (pathname === "/api/config" && request.method === "GET") {
           return await handleConfig(env);

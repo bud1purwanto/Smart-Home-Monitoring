@@ -141,6 +141,17 @@ export async function getDevicesStatus(env, deviceIds) {
   return data.result || [];
 }
 
+// Ambil SEMUA device yang ter-link ke akun App Tuya (uid) — auto-discover,
+// tidak perlu ketik Device ID manual. Sudah termasuk name, category, icon, online.
+// Endpoint: GET /v1.0/users/{uid}/devices
+export async function getUserDevices(env, uid) {
+  const data = await tuyaRequest(env, "GET", `/v1.0/users/${uid}/devices`, "");
+  if (!data.success) {
+    throw new Error(`Tuya user-devices error: ${data.msg || JSON.stringify(data)}`);
+  }
+  return data.result || [];
+}
+
 // Info detail satu device (nama, online, dsb).
 export async function getDeviceInfo(env, deviceId) {
   const data = await tuyaRequest(env, "GET", `/v1.0/devices/${deviceId}`, "");

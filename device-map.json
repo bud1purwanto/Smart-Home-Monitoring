@@ -1,8 +1,7 @@
 {
-  "_comment": "Mapping Device ID Tuya -> nama ramah, ruangan, dan ikon. Bukan rahasia, aman di-commit. Ganti 'deviceid1' dkk dengan Device ID asli dari Tuya IoT Platform / app Smart Life.",
-  "deviceid1": { "name": "Lampu Ruang Tamu", "room": "Ruang Tamu", "icon": "💡" },
-  "deviceid2": { "name": "CCTV Teras", "room": "Teras", "icon": "📷" },
-  "deviceid3": { "name": "Sensor Pintu", "room": "Pintu Depan", "icon": "🚪" },
-  "waterheaterid": { "name": "Water Heater", "room": "Kamar Mandi", "icon": "🚿" },
-  "acid": { "name": "AC Kamar Budi", "room": "Kamar Budi", "icon": "❄️" }
+  "_comment": "OPSIONAL. Daftar & nama device sudah otomatis diambil dari Tuya (TUYA_UID) — file ini hanya untuk override 'room' (dikelompokkan per ruangan) dan 'icon' kalau mau custom. Key = Device ID Tuya, boleh kosongkan kalau tidak perlu grouping ruangan.",
+  "42620303483fda0fd3c0": { "room": "Lorong Atas", "icon": "🔌" },
+  "eb06d67c5cc6409ca0w3ke": { "room": "Kamar Budi", "icon": "🔘" },
+  "ebebc9984e08668c79aazu": { "room": "Ruang Tamu", "icon": "📷" },
+  "0303401810521cd2e5e3": { "room": "Kamar Budi", "icon": "💡" }
 }

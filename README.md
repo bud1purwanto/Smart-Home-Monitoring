@@ -46,10 +46,25 @@ Variabel:
 | `TUYA_CLIENT_ID` | ya | Access ID Tuya |
 | `TUYA_CLIENT_SECRET` | **ya** | Access Secret Tuya |
 | `TUYA_BASE_URL` | tidak | endpoint region (mis. `https://openapi.tuyaus.com`) |
-| `DEVICE_IDS` | tidak | device yang dimonitor, dipisah koma |
-| `HIGH_POWER_DEVICE_IDS` | tidak | device untuk idle alerts (Water Heater, AC) |
+| `TUYA_UID` | tidak* | UID akun App Tuya — dipakai untuk **auto-discover semua device**, lihat cara cari di bawah |
+| `HIGH_POWER_DEVICE_IDS` | tidak | device untuk idle alerts (Water Heater, AC), tetap manual (cuma sebagian device yang mau dipantau) |
 | `IDLE_LIMIT_MINUTES` | tidak | batas idle (default 60) |
 | `HOME_LATITUDE` / `HOME_LONGITUDE` | tidak | koordinat untuk cek cuaca |
+
+\* teknisnya bukan rahasia, tapi tetap set lewat `.dev.vars`/secret supaya konsisten.
+
+### 🔎 Auto-Discover Device (tidak perlu ketik Device ID manual)
+
+Daripada mendaftar tiap Device ID satu-satu, dashboard ini otomatis menarik **semua device yang ter-link ke akun App Tuya** (`TUYA_UID`) via endpoint `GET /v1.0/users/{uid}/devices` — persis daftar yang kamu lihat di Tuya IoT Platform pada halaman **Cloud → Devices → Link Tuya App Account → Manage Devices**.
+
+Cara mendapatkan `TUYA_UID`:
+1. Buka **Tuya IoT Platform → Cloud → (project kamu) → Devices → Link Tuya App Account**.
+2. Klik baris akun (`budi.purwanto15@gmail.com`) yang sudah ter-link — bukan tombol "Modify", tapi baris akunnya — panel detail akan menampilkan **UID**.
+3. Salin UID tersebut ke `TUYA_UID` di `.dev.vars` (lokal) atau sebagai secret Cloudflare (produksi).
+
+Setelah itu, tambah/pindah/reset device di app Tuya **tidak perlu redeploy** — cukup klik tombol **🔄 Sinkronkan device** di dashboard (atau tunggu cache 5 menit habis otomatis).
+
+> Catatan: kalau device di-*unpair* lalu *pairing* ulang, Tuya generate Device ID baru untuk device itu — otomatis ikut ter-*discover* lagi lewat UID yang sama, tidak perlu update apa pun secara manual.
 
 ## 🚀 Setup & Jalankan Lokal
 
@@ -63,17 +78,17 @@ npx wrangler kv namespace create CACHE
 npm run dev
 ```
 
-### 🏷️ Nama Ramah Device
+### 🏷️ Grouping Ruangan & Ikon Custom (opsional)
 
-Edit `device-map.json` (bukan rahasia, aman di-commit) untuk memetakan Device ID Tuya ke nama, ruangan, dan ikon yang tampil di dashboard:
+Nama device sudah otomatis dari Tuya (lihat bagian Auto-Discover). `device-map.json` sekarang **opsional**, hanya untuk override `room` (pengelompokan ruangan di UI) dan `icon`:
 
 ```json
 {
-  "eb1234567890abcdef": { "name": "Lampu Ruang Tamu", "room": "Ruang Tamu", "icon": "💡" }
+  "eb1234567890abcdef": { "room": "Ruang Tamu", "icon": "💡" }
 }
 ```
 
-Device ID yang tidak ada di map tetap tampil (pakai ID mentah sebagai nama), jadi tidak wajib diisi semua sekaligus.
+Device yang tidak ada di map tetap tampil normal (nama dari Tuya, tanpa grouping ruangan khusus).
 
 ## ☁️ Deploy ke Cloudflare (pakai Secret)
 

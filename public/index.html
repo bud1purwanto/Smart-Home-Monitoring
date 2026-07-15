@@ -81,7 +81,10 @@
 <body>
   <header>
     <h1>🏠 Smart Home Monitoring</h1>
-    <div class="sub">Tuya x Cloudflare · <span id="clock"></span></div>
+    <div class="sub">
+      Tuya x Cloudflare · <span id="clock"></span>
+      · <a href="#" id="syncBtn" style="color: var(--accent)">🔄 Sinkronkan device</a>
+    </div>
   </header>
 
   <div id="weather"></div>
@@ -189,6 +192,16 @@
     refreshAll();
     // Polling ringan tiap 30 detik (Fitur 5 versi free-tier: refresh, bukan push).
     setInterval(refreshAll, 30000);
+
+    // Tombol manual: paksa ambil ulang daftar device dari Tuya
+    // (dipakai setelah tambah/pindah/reset device di app Tuya, tanpa perlu redeploy).
+    document.getElementById("syncBtn").addEventListener("click", async (e) => {
+      e.preventDefault();
+      e.target.textContent = "🔄 Menyinkronkan…";
+      await api("/api/devices/refresh", { method: "POST" });
+      await loadDevices();
+      e.target.textContent = "🔄 Sinkronkan device";
+    });
   </script>
 </body>
 </html>
