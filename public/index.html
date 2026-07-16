@@ -6,76 +6,58 @@
   <title>🏠 Smart Home Monitoring</title>
   <style>
     :root {
-      --bg: #0f172a;
-      --card: #1e293b;
-      --card2: #334155;
-      --text: #e2e8f0;
-      --muted: #94a3b8;
-      --accent: #38bdf8;
-      --on: #22c55e;
-      --off: #64748b;
-      --warn: #f59e0b;
+      --bg: #0f172a; --card: #1e293b; --card2: #334155;
+      --text: #e2e8f0; --muted: #94a3b8; --accent: #38bdf8;
+      --on: #22c55e; --off: #64748b; --warn: #f59e0b;
     }
     * { box-sizing: border-box; }
     body {
-      margin: 0;
-      font-family: system-ui, -apple-system, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      padding: 1rem;
+      margin: 0; font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg); color: var(--text); padding: 1rem;
     }
     header { margin-bottom: 1rem; }
     h1 { font-size: 1.4rem; margin: 0 0 .25rem; }
     .sub { color: var(--muted); font-size: .85rem; }
+    a { color: var(--accent); }
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
       gap: 1rem;
     }
     .card {
-      background: var(--card);
-      border-radius: 14px;
-      padding: 1rem;
+      background: var(--card); border-radius: 14px; padding: 1rem;
       box-shadow: 0 4px 12px rgba(0,0,0,.2);
     }
     .device-name { font-weight: 600; margin-bottom: .25rem; }
     .device-id { color: var(--muted); font-size: .7rem; word-break: break-all; }
-    .status-row {
-      display: flex; align-items: center; gap: .5rem;
-      margin: .75rem 0;
-    }
+    .muted-note { color: var(--muted); font-size: .75rem; font-style: italic; }
+    .status-row { display: flex; align-items: center; gap: .5rem; margin: .75rem 0; }
     .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--off); }
     .dot.on { background: var(--on); box-shadow: 0 0 8px var(--on); }
     button {
-      background: var(--accent);
-      color: #0f172a;
-      border: none;
-      border-radius: 8px;
-      padding: .5rem .9rem;
-      font-weight: 600;
-      cursor: pointer;
+      background: var(--accent); color: #0f172a; border: none;
+      border-radius: 8px; padding: .5rem .9rem; font-weight: 600; cursor: pointer;
     }
     button.off { background: var(--off); color: var(--text); }
     button:disabled { opacity: .5; cursor: not-allowed; }
     .alerts { margin-bottom: 1rem; }
     .alert {
-      background: rgba(245, 158, 11, .15);
-      border-left: 4px solid var(--warn);
-      padding: .6rem .8rem;
-      border-radius: 6px;
-      margin-bottom: .5rem;
-      font-size: .85rem;
+      background: rgba(245, 158, 11, .15); border-left: 4px solid var(--warn);
+      padding: .6rem .8rem; border-radius: 6px; margin-bottom: .5rem; font-size: .85rem;
     }
     .weather {
-      background: var(--card2);
-      border-radius: 12px;
-      padding: .75rem 1rem;
-      margin-bottom: 1rem;
-      display: inline-flex;
-      gap: 1rem;
-      align-items: center;
+      background: var(--card2); border-radius: 12px; padding: .75rem 1rem;
+      margin-bottom: 1rem; display: inline-flex; gap: 1rem; align-items: center;
     }
     .loading { color: var(--muted); }
+    /* Tab nav */
+    .tabs { display: flex; gap: .5rem; margin-bottom: 1rem; border-bottom: 1px solid var(--card2); }
+    .tabs button {
+      background: transparent; color: var(--muted); border-radius: 8px 8px 0 0;
+      padding: .5rem 1rem; font-weight: 600;
+    }
+    .tabs button.active { color: var(--text); background: var(--card); }
+    .placeholder { color: var(--muted); padding: 2rem 0; }
   </style>
 </head>
 <body>
@@ -83,125 +65,38 @@
     <h1>🏠 Smart Home Monitoring</h1>
     <div class="sub">
       Tuya x Cloudflare · <span id="clock"></span>
-      · <a href="#" id="syncBtn" style="color: var(--accent)">🔄 Sinkronkan device</a>
+      · <a href="#" id="syncBtn">🔄 Sinkronkan device</a>
     </div>
   </header>
+
+  <!-- Fitur 2: panel saran adaptif (diisi adaptive.js) -->
+  <div id="adaptive"></div>
+  <!-- Fitur 4: baris macro (diisi macros.js) -->
+  <div id="macroBar"></div>
 
   <div id="weather"></div>
   <div id="alerts" class="alerts"></div>
 
-  <div id="devices" class="grid">
-    <div class="loading">Memuat perangkat…</div>
-  </div>
+  <nav class="tabs">
+    <button data-tab="denah">🗺️ Denah</button>
+    <button data-tab="daftar" class="active">📋 Daftar</button>
+    <button data-tab="energi">🔋 Energi</button>
+  </nav>
 
-  <script>
-    async function api(path, opts) {
-      const res = await fetch(path, opts);
-      return res.json();
-    }
+  <section data-panel="denah" hidden>
+    <div id="twin"><div class="placeholder">Denah belum aktif.</div></div>
+  </section>
 
-    function tick() {
-      document.getElementById("clock").textContent =
-        new Date().toLocaleTimeString("id-ID");
-    }
-    setInterval(tick, 1000); tick();
+  <section data-panel="daftar">
+    <div id="devices" class="grid"><div class="loading">Memuat perangkat…</div></div>
+  </section>
 
-    function deviceIsOn(status) {
-      if (!Array.isArray(status)) return false;
-      return status.some(s =>
-        ["switch", "switch_1", "Power", "switch_led"].includes(s.code) &&
-        s.value === true
-      );
-    }
-    function switchCode(status) {
-      const s = (status || []).find(s =>
-        ["switch", "switch_1", "Power", "switch_led"].includes(s.code));
-      return s ? s.code : "switch_1";
-    }
+  <section data-panel="energi" hidden>
+    <div id="energy"><div class="placeholder">Monitor energi belum aktif.</div></div>
+  </section>
 
-    async function toggleDevice(deviceId, code, turnOn) {
-      await api("/api/command", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          deviceId,
-          commands: [{ code, value: turnOn }],
-        }),
-      });
-      setTimeout(loadDevices, 800);
-    }
-
-    async function loadDevices() {
-      const data = await api("/api/devices");
-      const el = document.getElementById("devices");
-      if (!data.success || !data.devices?.length) {
-        el.innerHTML = '<div class="loading">Tidak ada perangkat / cek konfigurasi DEVICE_IDS.</div>';
-        return;
-      }
-      el.innerHTML = data.devices.map(dev => {
-        const on = deviceIsOn(dev.status);
-        const code = switchCode(dev.status);
-        return `
-          <div class="card">
-            <div class="device-name">${dev.icon || "🔌"} ${dev.name || dev.id}</div>
-            <div class="device-id">${dev.room || ""}</div>
-            <div class="status-row">
-              <span class="dot ${on ? "on" : ""}"></span>
-              <span>${on ? "Menyala" : "Mati"}</span>
-            </div>
-            <button class="${on ? "off" : ""}"
-              onclick="toggleDevice('${dev.id}', '${code}', ${!on})">
-              ${on ? "Matikan" : "Nyalakan"}
-            </button>
-          </div>`;
-      }).join("");
-    }
-
-    async function loadAlerts() {
-      const data = await api("/api/idle-alerts");
-      const el = document.getElementById("alerts");
-      if (data.success && data.alerts?.length) {
-        el.innerHTML = data.alerts.map(a =>
-          `<div class="alert">⚠️ ${a.message}</div>`).join("");
-      } else {
-        el.innerHTML = "";
-      }
-    }
-
-    async function loadWeather() {
-      try {
-        const data = await api("/api/weather");
-        const el = document.getElementById("weather");
-        if (data.success) {
-          const w = data.weather;
-          el.innerHTML = `
-            <div class="weather">
-              <span>${w.isRaining ? "🌧️ Hujan" : "☀️ Cerah"}</span>
-              <span>${w.temperature ?? "-"}°C</span>
-              <span>💧 Siram Taman: ${w.gardenWateringDisabled ? "dinonaktifkan (hujan)" : "aktif"}</span>
-            </div>`;
-        }
-      } catch (e) { /* abaikan */ }
-    }
-
-    function refreshAll() {
-      loadDevices();
-      loadAlerts();
-      loadWeather();
-    }
-    refreshAll();
-    // Polling ringan tiap 30 detik (Fitur 5 versi free-tier: refresh, bukan push).
-    setInterval(refreshAll, 30000);
-
-    // Tombol manual: paksa ambil ulang daftar device dari Tuya
-    // (dipakai setelah tambah/pindah/reset device di app Tuya, tanpa perlu redeploy).
-    document.getElementById("syncBtn").addEventListener("click", async (e) => {
-      e.preventDefault();
-      e.target.textContent = "🔄 Menyinkronkan…";
-      await api("/api/devices/refresh", { method: "POST" });
-      await loadDevices();
-      e.target.textContent = "🔄 Sinkronkan device";
-    });
-  </script>
+  <script src="/js/api.js"></script>
+  <script src="/js/devices.js"></script>
+  <script src="/js/app.js"></script>
 </body>
 </html>
