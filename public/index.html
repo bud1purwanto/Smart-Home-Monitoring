@@ -86,6 +86,25 @@
     .row-inline { display: flex; gap: .5rem; }
     .row-inline > div { flex: 1; }
     .icon-input { max-width: 70px; }
+    /* Fitur 1: Denah skematik */
+    .twin-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem;
+    }
+    .room {
+      background: var(--card); border: 1px solid var(--card2); border-radius: 14px; padding: .75rem;
+    }
+    .room-title { font-weight: 600; font-size: .9rem; margin-bottom: .6rem; color: var(--muted); }
+    .room-devices { display: flex; flex-wrap: wrap; gap: .5rem; }
+    .chip {
+      display: inline-flex; align-items: center; gap: .35rem; padding: .4rem .6rem;
+      background: var(--card2); border-radius: 999px; font-size: .8rem; border: 1px solid transparent;
+    }
+    .chip.on { border-color: var(--on); box-shadow: 0 0 8px rgba(34,197,94,.4); }
+    .chip.clickable { cursor: pointer; }
+    .chip.clickable:hover { border-color: var(--accent); }
+    .chip .cdot { width: 8px; height: 8px; border-radius: 50%; background: var(--off); }
+    .chip.on .cdot { background: var(--on); }
+    .chip.offline { opacity: .45; }
   </style>
 </head>
 <body>
@@ -125,6 +144,7 @@
 
   <script src="/js/api.js"></script>
   <script src="/js/devices.js"></script>
+  <script src="/js/twin.js"></script>
   <script src="/js/macros.js"></script>
   <script src="/js/app.js"></script>
 </body>
