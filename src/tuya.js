@@ -152,6 +152,59 @@ export async function getUserDevices(env, uid) {
   return data.result || [];
 }
 
+// Ambil daftar "home" (rumah) milik akun App Tuya.
+// Endpoint: GET /v1.0/users/{uid}/homes
+export async function getUserHomes(env, uid) {
+  const data = await tuyaRequest(env, "GET", `/v1.0/users/${uid}/homes`, "");
+  if (!data.success) {
+    throw new Error(`Tuya homes error: ${data.msg || JSON.stringify(data)}`);
+  }
+  return data.result || [];
+}
+
+// Ambil daftar ruangan untuk satu home.
+// Endpoint: GET /v1.0/homes/{home_id}/rooms  -> result.rooms = [{ room_id, name }]
+export async function getHomeRooms(env, homeId) {
+  const data = await tuyaRequest(env, "GET", `/v1.0/homes/${homeId}/rooms`, "");
+  if (!data.success) {
+    throw new Error(`Tuya rooms error: ${data.msg || JSON.stringify(data)}`);
+  }
+  return data.result?.rooms || [];
+}
+
+// Ambil device yang ada di dalam satu ruangan.
+// Endpoint: GET /v1.0/homes/{home_id}/rooms/{room_id}/devices
+export async function getRoomDevices(env, homeId, roomId) {
+  const data = await tuyaRequest(
+    env,
+    "GET",
+    `/v1.0/homes/${homeId}/rooms/${roomId}/devices`,
+    ""
+  );
+  if (!data.success) {
+    throw new Error(`Tuya room-devices error: ${data.msg || JSON.stringify(data)}`);
+  }
+  return data.result || [];
+}
+
+// Bangun peta { deviceId -> namaRuangan } dari SEMUA home & ruangan akun App Tuya.
+// Dipakai untuk auto-mengelompokkan device per ruangan sesuai app Smart Life,
+// tanpa perlu isi device-map.json manual.
+export async function getRoomMap(env, uid) {
+  const homes = await getUserHomes(env, uid);
+  const map = {};
+  for (const home of homes) {
+    const rooms = await getHomeRooms(env, home.home_id);
+    for (const room of rooms) {
+      const devices = await getRoomDevices(env, home.home_id, room.room_id);
+      for (const d of devices) {
+        if (d?.id) map[d.id] = room.name;
+      }
+    }
+  }
+  return map;
+}
+
 // Info detail satu device (nama, online, dsb).
 export async function getDeviceInfo(env, deviceId) {
   const data = await tuyaRequest(env, "GET", `/v1.0/devices/${deviceId}`, "");

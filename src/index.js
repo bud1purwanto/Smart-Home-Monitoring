@@ -9,17 +9,22 @@ import {
   getDevicesStatus,
   getDeviceInfo,
   getUserDevices,
+  getRoomMap,
   sendCommands,
 } from "./tuya.js";
 import deviceMap from "../device-map.json";
 
-// device-map.json sekarang jadi OPSIONAL: hanya untuk override "room" & "icon"
-// (nama & daftar device sendiri sudah otomatis dari Tuya via TUYA_UID, tidak perlu ketik manual).
+// device-map.json sekarang jadi OPSIONAL: hanya untuk override "room" & "icon".
+// Nama, daftar device, DAN ruangan sudah otomatis dari Tuya (via TUYA_UID + Home/Room API),
+// jadi normalnya tidak perlu ketik apa pun manual. Urutan prioritas "room":
+//   1. override manual di device-map.json (kalau ada)
+//   2. ruangan asli dari app Smart Life (base.tuyaRoom)
+//   3. fallback "Tanpa Ruangan"
 function applyOverride(id, base) {
   const meta = deviceMap[id];
   return {
     ...base,
-    room: meta?.room || "Tanpa Ruangan",
+    room: meta?.room || base.tuyaRoom || "Tanpa Ruangan",
     icon: meta?.icon || base.icon || "🔌",
   };
 }
@@ -74,11 +79,22 @@ async function getDiscoveredDevices(env) {
       "TUYA_UID belum di-set. Isi di .dev.vars / secret Cloudflare (lihat README)."
     );
   }
-  const list = await getUserDevices(env, env.TUYA_UID);
-  await env.CACHE.put(DEVICE_LIST_CACHE_KEY, JSON.stringify(list), {
+  // Ambil daftar device + peta ruangan (Smart Life) paralel.
+  // Peta ruangan bersifat "best effort": kalau API Home/Room tidak tersedia
+  // (mis. project Tuya belum langganan), jangan gagalkan seluruh dashboard —
+  // cukup jatuh ke override device-map.json / "Tanpa Ruangan".
+  const [list, roomMap] = await Promise.all([
+    getUserDevices(env, env.TUYA_UID),
+    getRoomMap(env, env.TUYA_UID).catch((err) => {
+      console.log("Room map gagal (dilewati):", String(err.message || err));
+      return {};
+    }),
+  ]);
+  const enriched = list.map((d) => ({ ...d, tuyaRoom: roomMap[d.id] || null }));
+  await env.CACHE.put(DEVICE_LIST_CACHE_KEY, JSON.stringify(enriched), {
     expirationTtl: DEVICE_LIST_TTL_SECONDS,
   });
-  return list;
+  return enriched;
 }
 
 async function handleDevices(env) {
@@ -93,6 +109,7 @@ async function handleDevices(env) {
       name: d.name,
       category: d.category,
       online: d.online,
+      tuyaRoom: d.tuyaRoom || null,
       status: statusById[d.id] || [],
     })
   );
