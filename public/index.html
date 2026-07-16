@@ -105,6 +105,18 @@
     .chip .cdot { width: 8px; height: 8px; border-radius: 50%; background: var(--off); }
     .chip.on .cdot { background: var(--on); }
     .chip.offline { opacity: .45; }
+    /* Fitur 2: Adaptive panel */
+    .adaptive-panel {
+      background: linear-gradient(135deg, var(--card) 0%, var(--card2) 100%);
+      border-radius: 14px; padding: 1rem 1.25rem; margin-bottom: 1rem;
+    }
+    .adaptive-panel .greet { font-size: 1.1rem; font-weight: 600; margin-bottom: .5rem; }
+    .adaptive-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+    .adaptive-actions button { background: var(--accent); }
+    .adaptive-actions button.ghost { background: rgba(255,255,255,.08); color: var(--text); }
+    .adaptive-actions button:disabled { opacity: .5; cursor: not-allowed; }
+    .context-note { color: var(--muted); font-size: .8rem; margin-top: .6rem; }
+    .context-note.warn { color: var(--warn); }
   </style>
 </head>
 <body>
@@ -145,6 +157,7 @@
   <script src="/js/api.js"></script>
   <script src="/js/devices.js"></script>
   <script src="/js/twin.js"></script>
+  <script src="/js/adaptive.js"></script>
   <script src="/js/macros.js"></script>
   <script src="/js/app.js"></script>
 </body>
