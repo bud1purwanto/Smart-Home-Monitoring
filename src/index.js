@@ -32,7 +32,17 @@ function applyOverride(id, base) {
 const IDLE_STATE_KEY = "idle_state";
 const IDLE_ALERTS_KEY = "idle_alerts";
 const MACROS_KEY = "macros";
+const ENERGY_KEY = "energy_history";
 const DEVICE_LIST_CACHE_KEY = "device_list";
+
+// Skala datapoint Tuya. cur_power/cur_voltage device ini ×0.1 (verified: cur_voltage 2192 = 219.2V).
+const POWER_SCALE = 0.1;
+// add_ele = counter energi kumulatif; unit device ini diasumsikan 0.01 kWh/unit (KALIBRASI:
+// override via env ENERGY_SCALE kalau angka kWh terlihat meleset). Dipakai untuk konversi unit->kWh.
+const DEFAULT_ENERGY_SCALE = 0.01;
+const CO2_PER_KWH = 0.85; // faktor emisi grid Indonesia (kg CO2 / kWh), indikatif
+const TREE_YEAR_KG = 21; // 1 pohon menyerap ~21 kg CO2 / tahun (indikatif)
+const DEFAULT_TARGET_KWH = 30;
 const DEVICE_LIST_TTL_SECONDS = 300; // 5 menit — daftar device jarang berubah
 
 function json(data, status = 200) {
@@ -200,6 +210,113 @@ async function handleRunMacro(env, request) {
   return json({ success: results.every((r) => r.success), name: macro.name, results });
 }
 
+// ---- Fitur 3: Gamifikasi Energi (device bermeteran, mis. Water Heater) ----
+
+function statusValue(statusList, code) {
+  const s = (statusList || []).find((x) => x.code === code);
+  return s ? s.value : null;
+}
+
+// Tanggal lokal WIB (UTC+7) sebagai "YYYY-MM-DD" untuk pengelompokan harian/bulanan.
+function wibDateStr(ts = Date.now()) {
+  return new Date(ts + 7 * 3600 * 1000).toISOString().slice(0, 10);
+}
+
+function energyDeviceId(env) {
+  return env.ENERGY_DEVICE_ID || null;
+}
+
+// Dipanggil dari cron: baca counter energi kumulatif (add_ele) device bermeteran,
+// hitung konsumsi harian dari delta counter (tahan reset counter & ganti hari).
+async function computeEnergy(env) {
+  const devId = energyDeviceId(env);
+  if (!devId) return;
+
+  const statuses = await getDevicesStatus(env, [devId]);
+  const st = statuses[0]?.status;
+  if (!st) return;
+
+  const raw = Number(statusValue(st, "add_ele")); // counter kumulatif
+  if (!Number.isFinite(raw)) return;
+  const powerW = Number(statusValue(st, "cur_power") || 0) * POWER_SCALE;
+
+  const today = wibDateStr();
+  const state =
+    (await env.CACHE.get(ENERGY_KEY, { type: "json" })) || {
+      baseline: {},
+      days: {},
+      lastRaw: null,
+      lastDate: null,
+      lastPowerW: 0,
+    };
+
+  // Counter reset (nilai turun) → mulai ulang baseline hari ini dari nilai sekarang.
+  if (state.lastRaw != null && raw < state.lastRaw) {
+    state.baseline[today] = raw;
+  }
+  if (state.baseline[today] == null) state.baseline[today] = raw;
+
+  state.days[today] = Math.max(0, raw - state.baseline[today]);
+  state.lastRaw = raw;
+  state.lastDate = today;
+  state.lastPowerW = powerW;
+
+  // Buang data > 60 hari biar KV ramping.
+  const cutoff = wibDateStr(Date.now() - 60 * 86400 * 1000);
+  for (const d of Object.keys(state.days)) if (d < cutoff) delete state.days[d];
+  for (const d of Object.keys(state.baseline)) if (d < cutoff) delete state.baseline[d];
+
+  await env.CACHE.put(ENERGY_KEY, JSON.stringify(state));
+}
+
+async function handleEnergy(env) {
+  const devId = energyDeviceId(env);
+  const scale = Number(env.ENERGY_SCALE || DEFAULT_ENERGY_SCALE);
+  const targetKwh = Number(env.ENERGY_TARGET_KWH || DEFAULT_TARGET_KWH);
+  const state = await env.CACHE.get(ENERGY_KEY, { type: "json" });
+
+  if (!devId || !state || state.lastRaw == null) {
+    return json({
+      success: true,
+      configured: !!devId,
+      hasData: false,
+      targetKwh,
+      liveWatt: state?.lastPowerW || 0,
+      kwhToday: 0,
+      kwhMonth: 0,
+      co2Kg: 0,
+      trees: 0,
+      progress: 0,
+    });
+  }
+
+  const today = wibDateStr();
+  const month = today.slice(0, 7);
+  const unitsToday = state.days[today] || 0;
+  const unitsMonth = Object.entries(state.days)
+    .filter(([d]) => d.startsWith(month))
+    .reduce((sum, [, v]) => sum + v, 0);
+
+  const kwhToday = unitsToday * scale;
+  const kwhMonth = unitsMonth * scale;
+  const co2Kg = kwhMonth * CO2_PER_KWH;
+  const trees = co2Kg / TREE_YEAR_KG;
+
+  return json({
+    success: true,
+    configured: true,
+    hasData: true,
+    liveWatt: Math.round(state.lastPowerW || 0),
+    kwhToday: Number(kwhToday.toFixed(3)),
+    kwhMonth: Number(kwhMonth.toFixed(3)),
+    co2Kg: Number(co2Kg.toFixed(2)),
+    trees: Number(trees.toFixed(2)),
+    targetKwh,
+    progress: targetKwh > 0 ? Math.min(1, kwhMonth / targetKwh) : 0,
+    underTarget: kwhMonth <= targetKwh,
+  });
+}
+
 // Fitur 7: cuaca dari Open-Meteo (gratis, tanpa API key). Di-cache 30 menit di KV.
 async function handleWeather(env) {
   const cacheKey = "weather";
@@ -313,6 +430,9 @@ export default {
         if (pathname === "/api/weather" && request.method === "GET") {
           return await handleWeather(env);
         }
+        if (pathname === "/api/energy" && request.method === "GET") {
+          return await handleEnergy(env);
+        }
         if (pathname === "/api/command" && request.method === "POST") {
           return await handleCommand(env, request);
         }
@@ -331,6 +451,17 @@ export default {
   },
 
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(computeIdleAlerts(env));
+    // Tiap task cron di-guard sendiri: kegagalan satu (mis. HIGH_POWER_DEVICE_IDS
+    // belum diisi Device ID valid) tidak boleh mematikan task lainnya.
+    const safe = (p, label) =>
+      Promise.resolve(p).catch((e) =>
+        console.log(`cron ${label} gagal:`, String(e.message || e))
+      );
+    ctx.waitUntil(
+      Promise.all([
+        safe(computeIdleAlerts(env), "idle-alerts"),
+        safe(computeEnergy(env), "energy"),
+      ])
+    );
   },
 };

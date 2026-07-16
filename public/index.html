@@ -117,6 +117,28 @@
     .adaptive-actions button:disabled { opacity: .5; cursor: not-allowed; }
     .context-note { color: var(--muted); font-size: .8rem; margin-top: .6rem; }
     .context-note.warn { color: var(--warn); }
+    /* Fitur 3: Energi */
+    .energy-hero { display: flex; flex-wrap: wrap; gap: 1rem; align-items: stretch; }
+    .energy-card { background: var(--card); border-radius: 14px; padding: 1rem 1.25rem; flex: 1; min-width: 150px; }
+    .energy-card .big { font-size: 2rem; font-weight: 700; }
+    .energy-card .lbl { color: var(--muted); font-size: .8rem; }
+    .energy-card.trees { background: linear-gradient(135deg, #14532d 0%, #166534 100%); }
+    .progress-wrap { margin-top: 1rem; }
+    .progress-bar { height: 14px; background: var(--card2); border-radius: 999px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--on); transition: width .4s; }
+    .progress-fill.over { background: var(--warn); }
+    .progress-label { font-size: .8rem; color: var(--muted); margin-top: .4rem; }
+    .energy-msg { margin-top: 1rem; font-size: .95rem; }
+    .energy-msg.good { color: var(--on); }
+    .energy-note { color: var(--muted); font-size: .75rem; margin-top: 1rem; }
+    /* Confetti */
+    .confetti-piece {
+      position: fixed; top: -10px; width: 8px; height: 14px; z-index: 70;
+      pointer-events: none; will-change: transform, opacity;
+    }
+    @keyframes confetti-fall {
+      to { transform: translateY(105vh) rotate(720deg); opacity: 0; }
+    }
   </style>
 </head>
 <body>
@@ -158,6 +180,7 @@
   <script src="/js/devices.js"></script>
   <script src="/js/twin.js"></script>
   <script src="/js/adaptive.js"></script>
+  <script src="/js/energy.js"></script>
   <script src="/js/macros.js"></script>
   <script src="/js/app.js"></script>
 </body>

@@ -26,3 +26,9 @@ TUYA_BASE_URL = "https://openapi.tuyaus.com"
 IDLE_LIMIT_MINUTES = "60"
 HOME_LATITUDE = "-6.2088"
 HOME_LONGITUDE = "106.8456"
+# Fitur 3 (Gamifikasi Energi): device bermeteran yang dipantau konsumsinya (Water Heater).
+ENERGY_DEVICE_ID = "ebbee322b2f85c77e7bb0t"
+# Target kWh/bulan untuk progress & selebrasi. ENERGY_SCALE = konversi unit add_ele -> kWh
+# (kalibrasi kalau angka kWh terlihat meleset; default 0.01).
+ENERGY_TARGET_KWH = "30"
+ENERGY_SCALE = "0.01"
