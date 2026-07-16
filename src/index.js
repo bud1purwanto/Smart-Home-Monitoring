@@ -31,6 +31,7 @@ function applyOverride(id, base) {
 
 const IDLE_STATE_KEY = "idle_state";
 const IDLE_ALERTS_KEY = "idle_alerts";
+const MACROS_KEY = "macros";
 const DEVICE_LIST_CACHE_KEY = "device_list";
 const DEVICE_LIST_TTL_SECONDS = 300; // 5 menit — daftar device jarang berubah
 
@@ -145,6 +146,60 @@ async function handleIdleAlerts(env) {
   return json({ success: true, alerts });
 }
 
+// ---- Fitur 4: Action Macros ----
+// Macro = { id, name, icon, steps: [{ deviceId, code, value }] }. Disimpan di KV.
+
+function sanitizeMacros(arr) {
+  if (!Array.isArray(arr)) return null;
+  return arr.map((m) => ({
+    id: String(m.id || crypto.randomUUID()),
+    name: String(m.name || "Macro").slice(0, 60),
+    icon: String(m.icon || "🎬").slice(0, 8),
+    steps: Array.isArray(m.steps)
+      ? m.steps
+          .filter((s) => s && s.deviceId && s.code)
+          .map((s) => ({
+            deviceId: String(s.deviceId),
+            code: String(s.code),
+            value: typeof s.value === "boolean" ? s.value : s.value === "true",
+          }))
+      : [],
+  }));
+}
+
+async function handleGetMacros(env) {
+  const macros = (await env.CACHE.get(MACROS_KEY, { type: "json" })) || [];
+  return json({ success: true, macros });
+}
+
+async function handleSaveMacros(env, request) {
+  const clean = sanitizeMacros(await request.json());
+  if (!clean) return json({ success: false, msg: "Body harus array macro" }, 400);
+  await env.CACHE.put(MACROS_KEY, JSON.stringify(clean));
+  return json({ success: true, macros: clean });
+}
+
+async function handleRunMacro(env, request) {
+  const { id } = await request.json();
+  const macros = (await env.CACHE.get(MACROS_KEY, { type: "json" })) || [];
+  const macro = macros.find((m) => m.id === id);
+  if (!macro) return json({ success: false, msg: "Macro tidak ditemukan" }, 404);
+
+  // Jalankan tiap step berurutan; kalau satu gagal, lanjut sisanya & tandai.
+  const results = [];
+  for (const step of macro.steps) {
+    try {
+      const r = await sendCommands(env, step.deviceId, [
+        { code: step.code, value: step.value },
+      ]);
+      results.push({ ...step, success: !!r.success, msg: r.msg || null });
+    } catch (e) {
+      results.push({ ...step, success: false, msg: String(e.message || e) });
+    }
+  }
+  return json({ success: results.every((r) => r.success), name: macro.name, results });
+}
+
 // Fitur 7: cuaca dari Open-Meteo (gratis, tanpa API key). Di-cache 30 menit di KV.
 async function handleWeather(env) {
   const cacheKey = "weather";
@@ -242,6 +297,15 @@ export default {
         }
         if (pathname === "/api/config" && request.method === "GET") {
           return await handleConfig(env);
+        }
+        if (pathname === "/api/macros" && request.method === "GET") {
+          return await handleGetMacros(env);
+        }
+        if (pathname === "/api/macros" && request.method === "PUT") {
+          return await handleSaveMacros(env, request);
+        }
+        if (pathname === "/api/macros/run" && request.method === "POST") {
+          return await handleRunMacro(env, request);
         }
         if (pathname === "/api/idle-alerts" && request.method === "GET") {
           return await handleIdleAlerts(env);

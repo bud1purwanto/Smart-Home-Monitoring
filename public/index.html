@@ -58,6 +58,34 @@
     }
     .tabs button.active { color: var(--text); background: var(--card); }
     .placeholder { color: var(--muted); padding: 2rem 0; }
+    /* Fitur 4: Macro bar + editor */
+    .macro-bar { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; align-items: center; }
+    .macro-btn { background: var(--card2); color: var(--text); }
+    .macro-btn.add { background: transparent; border: 1px dashed var(--muted); color: var(--muted); }
+    .macro-btn .edit { opacity: .6; margin-left: .4rem; font-size: .8em; }
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,.6);
+      display: flex; align-items: center; justify-content: center; padding: 1rem; z-index: 50;
+    }
+    .modal {
+      background: var(--card); border-radius: 14px; padding: 1.25rem;
+      width: 100%; max-width: 480px; max-height: 90vh; overflow: auto;
+    }
+    .modal h3 { margin: 0 0 1rem; }
+    .modal label { display: block; font-size: .8rem; color: var(--muted); margin: .5rem 0 .2rem; }
+    .modal input, .modal select {
+      width: 100%; padding: .5rem; border-radius: 8px; border: 1px solid var(--card2);
+      background: var(--bg); color: var(--text); font-size: .9rem;
+    }
+    .step-row { display: flex; gap: .4rem; margin-bottom: .4rem; align-items: center; }
+    .step-row select { flex: 1; }
+    .step-row .del { background: transparent; color: var(--warn); padding: .3rem .5rem; }
+    .modal-actions { display: flex; gap: .5rem; justify-content: flex-end; margin-top: 1rem; }
+    .modal-actions .secondary { background: var(--card2); color: var(--text); }
+    .modal-actions .danger { background: transparent; color: var(--warn); margin-right: auto; }
+    .row-inline { display: flex; gap: .5rem; }
+    .row-inline > div { flex: 1; }
+    .icon-input { max-width: 70px; }
   </style>
 </head>
 <body>
@@ -97,6 +125,7 @@
 
   <script src="/js/api.js"></script>
   <script src="/js/devices.js"></script>
+  <script src="/js/macros.js"></script>
   <script src="/js/app.js"></script>
 </body>
 </html>
